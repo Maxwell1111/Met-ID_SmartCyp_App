@@ -105,6 +105,48 @@ class HybridMetabolismGUI:
         input_frame = tk.Frame(main_frame, bg=self.COLORS['bg_dark'])
         input_frame.pack(fill=tk.X, pady=(0, 12))
 
+        # Compound Name Input
+        name_label = tk.Label(
+            input_frame,
+            text="COMPOUND NAME (Optional):",
+            font=('Helvetica', 11, 'bold'),
+            bg=self.COLORS['bg_dark'],
+            fg=self.COLORS['text_primary'],
+            anchor='w'
+        )
+        name_label.pack(fill=tk.X, pady=(0, 6))
+
+        name_container = tk.Frame(
+            input_frame,
+            bg=self.COLORS['bg_light'],
+            padx=2,
+            pady=2
+        )
+        name_container.pack(fill=tk.X)
+
+        self.name_entry = tk.Entry(
+            name_container,
+            font=('Helvetica', 11),
+            bg=self.COLORS['input_bg'],
+            fg=self.COLORS['input_fg'],
+            insertbackground=self.COLORS['input_fg'],
+            relief=tk.FLAT,
+            highlightthickness=0
+        )
+        self.name_entry.pack(fill=tk.X, ipady=6)
+
+        # Example name text
+        name_example_label = tk.Label(
+            input_frame,
+            text="Example: Compound_A, Peptidomimetic_1, etc.",
+            font=('Helvetica', 8),
+            bg=self.COLORS['bg_dark'],
+            fg=self.COLORS['text_secondary'],
+            anchor='w'
+        )
+        name_example_label.pack(fill=tk.X, pady=(4, 0))
+
+        # SMILES Input
         smiles_label = tk.Label(
             input_frame,
             text="PASTE SMILES DATA:",
@@ -113,7 +155,7 @@ class HybridMetabolismGUI:
             fg=self.COLORS['text_primary'],
             anchor='w'
         )
-        smiles_label.pack(fill=tk.X, pady=(0, 6))
+        smiles_label.pack(fill=tk.X, pady=(12, 6))
 
         # Input container
         input_container = tk.Frame(
@@ -363,17 +405,30 @@ class HybridMetabolismGUI:
 
             method = self.method_var.get()
 
+            # Get compound name for file naming
+            compound_name = self.name_entry.get().strip()
+            if compound_name:
+                # Sanitize filename (remove invalid characters)
+                import re
+                compound_name = re.sub(r'[<>:"/\\|?*]', '_', compound_name)
+                pattern_filename = f"{compound_name}_pattern_result.png"
+                quant_filename = f"{compound_name}_quantitative_result.png"
+            else:
+                pattern_filename = "pattern_matching_result.png"
+                quant_filename = "quantitative_scoring_result.png"
+
             # Capture output
             old_stdout = sys.stdout
             sys.stdout = captured_output = io.StringIO()
 
             results = {}
+            results['filenames'] = {'pattern': pattern_filename, 'quantitative': quant_filename}
 
             # Run pattern matching
             if method in ('pattern', 'both'):
                 from metabolic_liability_tagger import MetabolicLiabilityTagger
                 pattern_tagger = MetabolicLiabilityTagger(smiles)
-                pattern_tagger.run_full_analysis("pattern_matching_result.png")
+                pattern_tagger.run_full_analysis(pattern_filename)
                 results['pattern'] = captured_output.getvalue()
 
             # Run quantitative scoring
@@ -382,7 +437,7 @@ class HybridMetabolismGUI:
                 quant_predictor = SMARTCypInspiredPredictor(smiles)
                 quant_predictor.predict()
                 report = quant_predictor.generate_report()
-                quant_predictor.visualize("quantitative_scoring_result.png", top_n=5)
+                quant_predictor.visualize(quant_filename, top_n=5)
                 results['quantitative'] = report
 
             # Restore stdout
@@ -400,7 +455,7 @@ class HybridMetabolismGUI:
             )
 
             # Show results
-            self.show_results(results, smiles, method)
+            self.show_results(results, smiles, method, compound_name)
 
         except Exception as e:
             self.handle_error("Analysis Error", str(e))
@@ -420,10 +475,16 @@ class HybridMetabolismGUI:
         )
         messagebox.showerror(title, message, parent=self.root)
 
-    def show_results(self, results, smiles, method):
+    def show_results(self, results, smiles, method, compound_name=""):
         """Display results in popup"""
         result_window = tk.Toplevel(self.root)
-        result_window.title("Prediction Results")
+
+        # Set window title with compound name if provided
+        if compound_name:
+            result_window.title(f"Prediction Results - {compound_name}")
+        else:
+            result_window.title("Prediction Results")
+
         result_window.geometry("900x700")
         result_window.configure(bg=self.COLORS['bg_dark'])
 
@@ -431,9 +492,14 @@ class HybridMetabolismGUI:
         header = tk.Frame(result_window, bg=self.COLORS['bg_medium'], pady=10)
         header.pack(fill=tk.X)
 
+        # Title with compound name if provided
+        title_text = f"RESULTS - {method.upper()} METHOD(S)"
+        if compound_name:
+            title_text += f"\nCompound: {compound_name}"
+
         title = tk.Label(
             header,
-            text=f"RESULTS - {method.upper()} METHOD(S)",
+            text=title_text,
             font=('Helvetica', 13, 'bold'),
             bg=self.COLORS['bg_medium'],
             fg=self.COLORS['text_primary']
@@ -474,6 +540,9 @@ class HybridMetabolismGUI:
         button_frame.pack(fill=tk.X)
 
         # View images button(s)
+        filenames = results.get('filenames', {'pattern': 'pattern_matching_result.png',
+                                               'quantitative': 'quantitative_scoring_result.png'})
+
         if method == 'both':
             view_pattern_btn = tk.Button(
                 button_frame,
@@ -485,7 +554,7 @@ class HybridMetabolismGUI:
                 relief=tk.FLAT,
                 padx=15,
                 pady=8,
-                command=lambda: self.view_image("pattern_matching_result.png")
+                command=lambda: self.view_image(filenames['pattern'])
             )
             view_pattern_btn.pack(side=tk.LEFT, padx=10, expand=True, fill=tk.X)
 
@@ -499,11 +568,11 @@ class HybridMetabolismGUI:
                 relief=tk.FLAT,
                 padx=15,
                 pady=8,
-                command=lambda: self.view_image("quantitative_scoring_result.png")
+                command=lambda: self.view_image(filenames['quantitative'])
             )
             view_quant_btn.pack(side=tk.LEFT, padx=10, expand=True, fill=tk.X)
         else:
-            image_name = "pattern_matching_result.png" if method == "pattern" else "quantitative_scoring_result.png"
+            image_name = filenames['pattern'] if method == "pattern" else filenames['quantitative']
             view_btn = tk.Button(
                 button_frame,
                 text='VIEW IMAGE',
@@ -555,6 +624,8 @@ class HybridMetabolismGUI:
 
     def load_example(self):
         """Load example SMILES"""
+        self.name_entry.delete(0, tk.END)
+        self.name_entry.insert(0, "Ac-Cha-Val-Tic-Dimethyluracil")
         self.smiles_entry.delete(0, tk.END)
         self.smiles_entry.insert(0, self.default_smiles)
         self.status_label.config(
@@ -564,6 +635,7 @@ class HybridMetabolismGUI:
 
     def clear_input(self):
         """Clear input"""
+        self.name_entry.delete(0, tk.END)
         self.smiles_entry.delete(0, tk.END)
         self.status_label.config(
             text="● Input cleared",
