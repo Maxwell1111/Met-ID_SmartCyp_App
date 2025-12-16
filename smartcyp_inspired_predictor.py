@@ -306,43 +306,78 @@ class SMARTCypInspiredPredictor:
 
     def visualize(self, output_path: str = "smartcyp_prediction.png",
                   width: int = 1600, height: int = 1200, top_n: int = 5):
-        """Generate annotated structure with top sites highlighted"""
+        """Generate annotated structure with top sites highlighted (without hydrogens)"""
         if not self.sites:
             self.predict()
 
         # Get top N sites
         top_sites = self.sites[:top_n]
 
-        # Prepare highlighting
-        highlight_atoms = [site.atom_idx for site in top_sites]
+        # Remove hydrogens for clean visualization (like pattern matching tool)
+        mol_no_h = Chem.RemoveHs(self.mol)
+        AllChem.Compute2DCoords(mol_no_h)
 
-        # Color gradient: red (highest) to yellow (lower)
+        # Map atom indices from mol_with_h to mol_no_h
+        atom_map = {}  # maps H-containing mol idx -> no-H mol idx
+        h_idx = 0
+        no_h_idx = 0
+        for atom in self.mol.GetAtoms():
+            if atom.GetAtomicNum() != 1:  # Not hydrogen
+                atom_map[atom.GetIdx()] = no_h_idx
+                no_h_idx += 1
+
+        # Map highlighted atoms to no-H indices
+        highlight_atoms = []
         atom_colors = {}
         for site in top_sites:
-            # Normalize score to 0-1 for color
-            normalized = site.score / 100.0
-            # Red to yellow gradient
-            atom_colors[site.atom_idx] = (1.0, 1.0 - normalized * 0.5, 0.0)
+            if site.atom_idx in atom_map:
+                mapped_idx = atom_map[site.atom_idx]
+                highlight_atoms.append(mapped_idx)
+
+                # Color gradient: red (highest) to orange (lower)
+                normalized = site.score / 100.0
+                atom_colors[mapped_idx] = (1.0, max(0.2, 1.0 - normalized * 0.8), 0.0)
+
+        # Prepare bond highlighting
+        bond_colors = {}
+        for bond in mol_no_h.GetBonds():
+            begin_idx = bond.GetBeginAtomIdx()
+            end_idx = bond.GetEndAtomIdx()
+
+            # If both atoms are highlighted, color the bond
+            if begin_idx in highlight_atoms and end_idx in highlight_atoms:
+                # Use average color of the two atoms
+                color1 = atom_colors.get(begin_idx, (1.0, 0.5, 0.0))
+                color2 = atom_colors.get(end_idx, (1.0, 0.5, 0.0))
+                avg_color = tuple((c1 + c2) / 2 for c1, c2 in zip(color1, color2))
+                bond_colors[bond.GetIdx()] = avg_color
 
         # Create drawer
         drawer = rdMolDraw2D.MolDraw2DCairo(width, height)
-        drawer.drawOptions().addAtomIndices = True
+        drawer.drawOptions().clearBackground = True
         drawer.drawOptions().bondLineWidth = 3
         drawer.drawOptions().atomLabelFontSize = 30
+        drawer.drawOptions().legendFontSize = 20
+        drawer.drawOptions().padding = 0.05
 
         # Build legend
-        legend_lines = [f"TOP {top_n} METABOLIC SITES (SMARTCyp-Inspired):"]
+        legend_lines = [f"METABOLIC SOFT SPOTS (Top {top_n} - SMARTCyp-Inspired):"]
         for site in top_sites:
+            # Map to no-H index for display
+            display_idx = atom_map.get(site.atom_idx, site.atom_idx)
             legend_lines.append(
-                f"#{site.rank}: Atom {site.atom_idx} - Score {site.score:.1f} - {site.reaction_type} ({site.cyp_isoform})"
+                f"• Rank #{site.rank}: Atom {display_idx} ({site.atom_symbol}) - "
+                f"Score {site.score:.1f} - {site.reaction_type} - {site.cyp_isoform}"
             )
         legend_text = "\n".join(legend_lines)
 
-        # Draw
+        # Draw molecule without hydrogens
         drawer.DrawMolecule(
-            self.mol,
+            mol_no_h,
             highlightAtoms=highlight_atoms,
             highlightAtomColors=atom_colors,
+            highlightBonds=list(bond_colors.keys()),
+            highlightBondColors=bond_colors,
             legend=legend_text
         )
 
