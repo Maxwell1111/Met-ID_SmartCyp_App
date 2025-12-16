@@ -109,6 +109,65 @@ class MetabolicLiabilityTagger:
             description="Branched aliphatic methyls (ω-oxidation)",
             risk_level="Low-Medium"
         ),
+
+        # ========== PHASE II METABOLISM ==========
+
+        LiabilityRule(
+            name="Phenol (Glucuronidation/Sulfation)",
+            smarts="[OH]c1ccccc1",  # Phenolic hydroxyl
+            color=(0.0, 0.8, 0.8),  # Cyan
+            description="Phenolic -OH (UGT/SULT substrate)",
+            risk_level="Very High"
+        ),
+        LiabilityRule(
+            name="Primary Alcohol (Glucuronidation)",
+            smarts="[CH2][OH]",  # Primary alcohol
+            color=(0.2, 0.9, 0.9),  # Light cyan
+            description="Primary -OH (UGT substrate)",
+            risk_level="High"
+        ),
+        LiabilityRule(
+            name="Secondary Alcohol (Glucuronidation)",
+            smarts="[CH;!R][OH]",  # Secondary alcohol, non-ring
+            color=(0.3, 0.85, 0.85),  # Light cyan
+            description="Secondary -OH (UGT substrate)",
+            risk_level="Medium-High"
+        ),
+        LiabilityRule(
+            name="Carboxylic Acid (Glucuronidation)",
+            smarts="[CX3](=O)[OH]",  # Carboxylic acid
+            color=(0.1, 0.7, 0.9),  # Blue-cyan
+            description="Carboxylic acid (UGT substrate)",
+            risk_level="High"
+        ),
+        LiabilityRule(
+            name="Primary Amine (Acetylation)",
+            smarts="[NX3;H2;!R]",  # Primary amine, non-ring
+            color=(0.5, 0.0, 0.8),  # Purple
+            description="Primary -NH₂ (NAT1/NAT2 substrate)",
+            risk_level="Medium-High"
+        ),
+        LiabilityRule(
+            name="Aromatic Amine (Acetylation)",
+            smarts="[NH2]c1ccccc1",  # Aniline
+            color=(0.6, 0.0, 0.9),  # Bright purple
+            description="Aromatic -NH₂ (NAT substrate)",
+            risk_level="High"
+        ),
+        LiabilityRule(
+            name="Thiol (Glutathione Conjugation)",
+            smarts="[SH]",  # Thiol group
+            color=(0.9, 0.9, 0.0),  # Yellow
+            description="Thiol -SH (GST substrate)",
+            risk_level="Medium"
+        ),
+        LiabilityRule(
+            name="Catechol (COMT Methylation)",
+            smarts="[OH]c1ccc([OH])cc1",  # Catechol (ortho-dihydroxy)
+            color=(0.0, 0.6, 0.6),  # Dark cyan
+            description="Catechol (COMT O-methylation)",
+            risk_level="High"
+        ),
     ]
 
     def __init__(self, smiles: str):

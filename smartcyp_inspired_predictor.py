@@ -141,6 +141,65 @@ class SMARTCypInspiredPredictor:
             'cyp_isoform': 'CYP3A4',
             'reaction': 'Heteroaromatic Hydroxylation'
         },
+
+        # ========== PHASE II METABOLISM ==========
+
+        {
+            'name': 'Phenolic OH',
+            'smarts': '[OH]c1ccccc1',
+            'base_energy': 65.0,  # Very reactive for conjugation
+            'cyp_isoform': 'UGT/SULT',
+            'reaction': 'Glucuronidation/Sulfation'
+        },
+        {
+            'name': 'Primary Alcohol',
+            'smarts': '[CH2][OH]',
+            'base_energy': 70.0,  # High reactivity
+            'cyp_isoform': 'UGT',
+            'reaction': 'O-Glucuronidation'
+        },
+        {
+            'name': 'Secondary Alcohol',
+            'smarts': '[CH;!R][OH]',
+            'base_energy': 72.0,
+            'cyp_isoform': 'UGT',
+            'reaction': 'O-Glucuronidation'
+        },
+        {
+            'name': 'Carboxylic Acid',
+            'smarts': '[CX3](=O)[OH]',
+            'base_energy': 68.0,
+            'cyp_isoform': 'UGT',
+            'reaction': 'Acyl Glucuronidation'
+        },
+        {
+            'name': 'Primary Amine',
+            'smarts': '[NX3;H2;!R]',
+            'base_energy': 74.0,
+            'cyp_isoform': 'NAT1/NAT2',
+            'reaction': 'N-Acetylation'
+        },
+        {
+            'name': 'Aromatic Amine',
+            'smarts': '[NH2]c1ccccc1',
+            'base_energy': 67.0,  # Very reactive
+            'cyp_isoform': 'NAT1/NAT2',
+            'reaction': 'N-Acetylation'
+        },
+        {
+            'name': 'Thiol',
+            'smarts': '[SH]',
+            'base_energy': 66.0,  # Very reactive
+            'cyp_isoform': 'GST',
+            'reaction': 'Glutathione Conjugation'
+        },
+        {
+            'name': 'Catechol',
+            'smarts': '[OH]c1ccc([OH])cc1',
+            'base_energy': 64.0,  # Extremely reactive
+            'cyp_isoform': 'COMT/UGT',
+            'reaction': 'O-Methylation/Glucuronidation'
+        },
     ]
 
     def __init__(self, smiles: str):
